@@ -13,7 +13,7 @@ export default {
         const body = await remote.text();
         return new Response(body, {status: 200, headers: {"content-type":"application/json; charset=utf-8","cache-control":"no-store, max-age=0","access-control-allow-origin":"*","x-gomo-source":"radar-netlify"}});
       } catch (error) {
-        const fallbackURL = new URL("/data/fallback.json", request.url);
+        const fallbackURL = new URL("/fallback.json", request.url);
         const fallback = await env.ASSETS.fetch(new Request(fallbackURL));
         const headers = new Headers(fallback.headers);
         headers.set("cache-control","no-store, max-age=0");

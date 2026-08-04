@@ -62,7 +62,7 @@ function render(){
 async function loadData(){
   $("#todayStatus").textContent=tr("loading");
   let live=false,data;
-  try{const r=await fetch(`/api/shiny-data?t=${Date.now()}`,{cache:"no-store"});if(!r.ok)throw new Error(r.status);data=await r.json();live=true;}catch(e){const r=await fetch(`/data/fallback.json?t=${Date.now()}`,{cache:"no-store"});data=await r.json();}
+  try{const r=await fetch(`/api/shiny-data?t=${Date.now()}`,{cache:"no-store"});if(!r.ok)throw new Error(r.status);data=await r.json();live=true;}catch(e){const r=await fetch(`/fallback.json?t=${Date.now()}`,{cache:"no-store"});data=await r.json();}
   model=normalize(data);$("#syncLine").textContent=`${live?tr("syncLive"):tr("syncFallback")} · ${new Date().toLocaleString(lang==="fr"?"fr-BE":lang)}`;render();
 }
 function findGroup(server){for(const g of ["A","B","C"])if((model?.groups?.[g]||[]).includes(server))return g;return null;}
