@@ -32,6 +32,7 @@
         <div class="count-bubble"><strong id="todayCount">—</strong><span data-i18n="servers">serveurs</span></div>
       </div>
       <div id="todayServers" class="server-grid"></div>
+      <button id="copyTodayBtn" class="refresh-btn" type="button" onclick="navigator.clipboard.writeText([...document.querySelectorAll('#todayServers .server-pill')].map(e=>e.textContent.trim()).join(', ')).then(()=>{this.textContent='✓ Copié';setTimeout(()=>this.textContent='📋 Copier les serveurs',1500)})">📋 Copier les serveurs</button>
     </section>
 
     <section class="card source-card">
