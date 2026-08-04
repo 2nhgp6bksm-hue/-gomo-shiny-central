@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#050b12">
+  <title>GoMo Shiny — Central</title>
+  <link rel="stylesheet" href="/styles.css?v=1.0.0">
+</head>
+<body>
+  <header class="topbar">
+    <a class="home-btn" href="https://gomo-central-site.gjp86wh7p2.workers.dev/" aria-label="GoMo Central">⌂ <span>GoMo Central</span></a>
+    <div class="brand"><strong>GoMo</strong><small>SHINY · CENTRAL</small></div>
+    <select id="language" class="language" aria-label="Langue">
+      <option value="fr">FR</option><option value="de">DE</option><option value="en">EN</option><option value="ro">RO</option>
+      <option value="uk">UA</option><option value="ko">KO</option><option value="hr">HR</option><option value="pt">PT</option>
+    </select>
+  </header>
+
+  <main>
+    <section class="hero" aria-label="GoMo Shiny Radar">
+      <img src="/assets/shiny-hero.png" alt="GoMo Shiny Radar">
+    </section>
+
+    <section class="card today-card">
+      <div class="card-kicker" data-i18n="today">AUJOURD’HUI</div>
+      <div class="today-head">
+        <div>
+          <h1><span data-i18n="group">Groupe</span> <span id="todayGroup">—</span> — <span id="confidence">—</span>%</h1>
+          <p id="todayStatus">Chargement…</p>
+        </div>
+        <div class="count-bubble"><strong id="todayCount">—</strong><span data-i18n="servers">serveurs</span></div>
+      </div>
+      <div id="todayServers" class="server-grid"></div>
+    </section>
+
+    <section class="card source-card">
+      <div class="section-title">
+        <div>
+          <span class="dot green"></span><strong data-i18n="botConfirmed">Dernière confirmation Bot</strong>
+        </div>
+        <button id="refreshBtn" class="refresh-btn" type="button" data-i18n="refresh">Actualiser</button>
+      </div>
+      <div id="lastConfirmed" class="last-confirmed">—</div>
+      <div id="syncLine" class="sync-line">—</div>
+    </section>
+
+    <section class="card search-card">
+      <div class="section-title"><strong data-i18n="searchTitle">Rechercher un serveur</strong></div>
+      <div class="search-row">
+        <input id="serverSearch" type="number" inputmode="numeric" placeholder="1605" aria-label="Numéro du serveur">
+        <button id="searchBtn" type="button" data-i18n="search">Rechercher</button>
+      </div>
+      <div id="searchResult" class="search-result"></div>
+    </section>
+
+    <section class="card local-card">
+      <span class="dot blue"></span>
+      <div><strong>Serveur 1591</strong><p data-i18n="localRule">Géré séparément : Shiny mardi et samedi.</p></div>
+    </section>
+
+    <section class="card explanation-card">
+      <div class="section-title"><strong data-i18n="howTitle">Comment la mise à jour fonctionne</strong></div>
+      <p data-i18n="howText">La page récupère la source de données du Radar Shiny existant. Si aucune confirmation n’est disponible pour aujourd’hui, elle affiche automatiquement le groupe prévu selon le cycle A → C → B.</p>
+    </section>
+  </main>
+
+  <footer>GoMo Shiny Central · <span id="versionText">v1.0</span></footer>
+  <script src="/app.js?v=1.0.0" defer></script>
+</body>
+</html>
