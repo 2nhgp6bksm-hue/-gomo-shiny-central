@@ -11,64 +11,143 @@ hr:{today:"DANAS",group:"Grupa",servers:"servera",loading:"Učitavanje…",confi
 pt:{today:"HOJE",group:"Grupo",servers:"servidores",loading:"A carregar…",confirmed:"Confirmado pelo Bot",forecast:"Previsão — confirmar por captura",botConfirmed:"Última confirmação Bot",refresh:"Atualizar",searchTitle:"Procurar um servidor",search:"Procurar",localRule:"Gerido separadamente: Shiny terça e sábado.",howTitle:"Como funciona a atualização",howText:"A página lê a fonte de dados do Shiny Radar existente. Se não houver confirmação para hoje, mostra automaticamente o grupo previsto segundo o ciclo A → C → B.",syncLive:"Fonte Shiny Radar sincronizada",syncFallback:"Modo de segurança: dados locais",notFound:"Servidor não presente nos grupos Shiny acompanhados.",serverGroup:"O servidor {s} pertence ao grupo {g}.",todayYes:"Está na lista de hoje.",todayNo:"Não está na lista de hoje.",last:"Última confirmação: {d} · Grupo {g} · {n} servidores"}
 };
 
-let lang=localStorage.getItem("gomo-shiny-central-lang")||"fr";
+const Core=window.ShinyRadarCore;
+if(!Core)throw new Error("Moteur Shiny Radar indisponible");
+
+const SUPPORTED_LANGS=Object.keys(I18N);
+const requestedLang=new URLSearchParams(location.search).get("lang");
+let lang=SUPPORTED_LANGS.includes(requestedLang)?requestedLang:localStorage.getItem("gomo-shiny-central-lang")||"fr";
+if(!SUPPORTED_LANGS.includes(lang))lang="fr";
+
+const AUTONOMOUS_TEXT={
+  fr:"Mode autonome · archive confirmée de 21 jours",
+  de:"Autonomer Modus · bestätigtes 21-Tage-Archiv",
+  en:"Autonomous mode · verified 21-day archive",
+  ro:"Mod autonom · arhivă confirmată de 21 de zile",
+  uk:"Автономний режим · підтверджений архів за 21 день",
+  ko:"자동 모드 · 확인된 21일 기록",
+  hr:"Samostalni način · potvrđena arhiva od 21 dana",
+  pt:"Modo autónomo · arquivo confirmado de 21 dias"
+};
+
 let model=null;
 let todayModel=null;
-const $=s=>document.querySelector(s);
-const tr=(k,vars={})=>{let v=(I18N[lang]||I18N.fr)[k]||I18N.fr[k]||k;for(const [a,b] of Object.entries(vars))v=v.replaceAll(`{${a}}`,b);return v};
-const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-const parseDate=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d,12,0,0)};
-const fmtDate=s=>new Intl.DateTimeFormat(lang==="fr"?"fr-BE":lang,{day:"2-digit",month:"2-digit",year:"numeric"}).format(parseDate(s));
-const uniq=a=>[...new Set((a||[]).map(Number).filter(Number.isFinite))].sort((a,b)=>a-b);
+let syncMode="autonomous";
+let lastSyncAt=null;
+let loadingPromise=null;
+const $=selector=>document.querySelector(selector);
+const tr=(key,vars={})=>{let value=(I18N[lang]||I18N.fr)[key]||I18N.fr[key]||key;for(const [name,replacement] of Object.entries(vars))value=value.replaceAll(`{${name}}`,replacement);return value};
+const locale=()=>lang==="fr"?"fr-BE":lang;
+const fmtDate=date=>new Intl.DateTimeFormat(locale(),{day:"2-digit",month:"2-digit",year:"numeric",timeZone:"UTC"}).format(new Date(`${date}T12:00:00Z`));
 
-function normalize(data){
-  const history=(Array.isArray(data?.history)?data.history:Array.isArray(data?.days)?data.days:[]).filter(x=>x?.date).map(x=>({...x,group:String(x.group||"").toUpperCase(),servers:uniq(x.servers),status:String(x.status||"").toLowerCase()}));
-  const groups={A:uniq(data?.groups?.A),B:uniq(data?.groups?.B),C:uniq(data?.groups?.C)};
-  for(const g of ["A","B","C"]){if(!groups[g].length){const latest=[...history].reverse().find(x=>x.group===g&&x.servers.length);if(latest)groups[g]=latest.servers;}}
-  return {history,groups,updated_at:data?.updated_at||data?.updatedAt||"",central_version:data?.central_version||data?.version||""};
+function renderSync(){
+  if(!lastSyncAt)return;
+  const label=syncMode==="live"?tr("syncLive"):(AUTONOMOUS_TEXT[lang]||AUTONOMOUS_TEXT.fr);
+  $("#syncLine").textContent=`${label} · ${lastSyncAt.toLocaleString(locale())}`;
 }
 
-function confirmedDays(){return model.history.filter(d=>d.status.includes("confirm")||d.status==="confirmed").sort((a,b)=>a.date.localeCompare(b.date));}
-function latestConfirmed(){return confirmedDays().at(-1)||null;}
-function dayDiff(a,b){return Math.round((parseDate(b)-parseDate(a))/86400000);}
-function predictGroup(dateStr){
-  const latest=latestConfirmed();
-  if(!latest)return {group:"A",confidence:0};
-  const cycle=["A","C","B"];
-  let idx=cycle.indexOf(latest.group);if(idx<0)idx=0;
-  const diff=dayDiff(latest.date,dateStr);
-  const group=cycle[(idx+((diff%3)+3)%3)%3];
-  const days=confirmedDays();let matches=0,total=0;
-  for(let i=1;i<days.length;i++){const prev=days[i-1],cur=days[i],d=dayDiff(prev.date,cur.date);if(d===1&&cycle.includes(prev.group)&&cycle.includes(cur.group)){total++;const p=cycle[(cycle.indexOf(prev.group)+1)%3];if(p===cur.group)matches++;}}
-  return {group,confidence:total?Math.round(matches/total*100):100};
-}
-function getToday(){
-  const date=iso(new Date());
-  const exact=model.history.find(d=>d.date===date&&(d.status.includes("confirm")||d.status==="confirmed"));
-  if(exact)return {date,group:exact.group,servers:exact.servers,confirmed:true,confidence:100};
-  const p=predictGroup(date);return {date,group:p.group,servers:model.groups[p.group]||[],confirmed:false,confidence:p.confidence};
+function applyI18n(){
+  document.documentElement.lang=lang;
+  document.querySelectorAll("[data-i18n]").forEach(element=>{element.textContent=tr(element.dataset.i18n)});
+  $("#language").value=lang;
+  if(todayModel)render();
+  renderSync();
 }
 
-function applyI18n(){document.documentElement.lang=lang;document.querySelectorAll("[data-i18n]").forEach(el=>{el.textContent=tr(el.dataset.i18n)});$("#language").value=lang;if(todayModel)render();}
-function renderServers(list){$("#todayServers").innerHTML=list.map(n=>`<div class="server-pill">${n}</div>`).join("");}
+function renderServers(list){
+  const pills=list.map(server=>{
+    const pill=document.createElement("div");
+    pill.className="server-pill";
+    pill.textContent=String(server);
+    return pill;
+  });
+  $("#todayServers").replaceChildren(...pills);
+}
+
 function render(){
-  todayModel=getToday();
-  $("#todayGroup").textContent=todayModel.group||"—";$("#confidence").textContent=todayModel.confidence;$("#todayCount").textContent=todayModel.servers.length;
+  const today=Core.dateInTimeZone(new Date(),model.timeZone||Core.TIME_ZONE);
+  todayModel=Core.getDay(model,today);
+  $("#todayGroup").textContent=todayModel.group||"—";
+  $("#confidence").textContent=String(todayModel.confidence);
+  $("#todayCount").textContent=String(todayModel.servers.length);
   $("#todayStatus").textContent=todayModel.confirmed?tr("confirmed"):tr("forecast");
-  $(".today-card").classList.toggle("confirmed",todayModel.confirmed);renderServers(todayModel.servers);
-  const last=latestConfirmed();$("#lastConfirmed").textContent=last?tr("last",{d:fmtDate(last.date),g:last.group,n:last.servers.length}):"—";
+  $(".today-card").classList.toggle("confirmed",todayModel.confirmed);
+  renderServers(todayModel.servers);
+
+  const last=Core.latestConfirmed(model);
+  $("#lastConfirmed").textContent=last?tr("last",{d:fmtDate(last.date),g:last.group,n:last.servers.length}):"—";
   searchServer();
 }
+
+async function fetchJson(url){
+  const response=await fetch(url,{cache:"no-store"});
+  if(!response.ok)throw new Error(`HTTP ${response.status}`);
+  return {data:await response.json(),source:response.headers.get("x-gomo-source")||""};
+}
+
 async function loadData(){
+  if(loadingPromise)return loadingPromise;
   $("#todayStatus").textContent=tr("loading");
-  let live=false,data;
-  try{const r=await fetch(`/api/shiny-data?t=${Date.now()}`,{cache:"no-store"});if(!r.ok)throw new Error(r.status);data=await r.json();live=true;}catch(e){const r=await fetch(`/fallback.json?t=${Date.now()}`,{cache:"no-store"});data=await r.json();}
-  model=normalize(data);$("#syncLine").textContent=`${live?tr("syncLive"):tr("syncFallback")} · ${new Date().toLocaleString(lang==="fr"?"fr-BE":lang)}`;render();
+
+  loadingPromise=(async()=>{
+    try{
+      const baseline=await fetchJson(`/fallback.json?t=${Date.now()}`);
+      model=Core.normalizeBaseline(baseline.data);
+      syncMode="autonomous";
+
+      try{
+        const remote=await fetchJson(`/api/shiny-data?t=${Date.now()}`);
+        if(remote.source!=="fallback"&&remote.source!=="verified-baseline"){
+          const merged=Core.mergeConfirmedRemote(model,remote.data);
+          model=merged.model;
+          syncMode="live";
+        }
+      }catch(error){
+        console.info("Source Radar distante indisponible, archive confirmée utilisée.",error);
+      }
+
+      lastSyncAt=new Date();
+      renderSync();
+      render();
+    }catch(error){
+      console.error("Impossible de charger les données Shiny Radar.",error);
+      $("#todayStatus").textContent=tr("syncFallback");
+    }
+  })().finally(()=>{loadingPromise=null});
+
+  return loadingPromise;
 }
-function findGroup(server){for(const g of ["A","B","C"])if((model?.groups?.[g]||[]).includes(server))return g;return null;}
+
+function findGroup(server){
+  return Core.GROUPS.find(group=>(model?.groups?.[group]||[]).includes(server))||null;
+}
+
 function searchServer(){
-  if(!model||!todayModel)return;const n=Number($("#serverSearch").value);if(!n){$("#searchResult").textContent="";return;}const g=findGroup(n);if(!g){$("#searchResult").textContent=tr("notFound");return;}const yes=todayModel.servers.includes(n);$("#searchResult").innerHTML=`<strong>${tr("serverGroup",{s:n,g})}</strong> ${tr(yes?"todayYes":"todayNo")}`;
+  if(!model||!todayModel)return;
+  const server=Number($("#serverSearch").value);
+  if(!server){$("#searchResult").textContent="";return;}
+  if(server===Core.HOME_SERVER){$("#searchResult").textContent=tr("localRule");return;}
+  const group=findGroup(server);
+  if(!group){$("#searchResult").textContent=tr("notFound");return;}
+  const today=todayModel.servers.includes(server);
+  $("#searchResult").textContent=`${tr("serverGroup",{s:server,g:group})} ${tr(today?"todayYes":"todayNo")}`;
 }
-$("#language").addEventListener("change",e=>{lang=e.target.value;localStorage.setItem("gomo-shiny-central-lang",lang);applyI18n()});
-$("#refreshBtn").addEventListener("click",loadData);$("#searchBtn").addEventListener("click",searchServer);$("#serverSearch").addEventListener("input",searchServer);
-applyI18n();loadData();
+
+$("#language").addEventListener("change",event=>{
+  lang=event.target.value;
+  localStorage.setItem("gomo-shiny-central-lang",lang);
+  applyI18n();
+});
+$("#refreshBtn").addEventListener("click",()=>{void loadData()});
+$("#searchBtn").addEventListener("click",searchServer);
+$("#serverSearch").addEventListener("input",searchServer);
+
+setInterval(()=>{
+  if(!model||!todayModel)return;
+  const today=Core.dateInTimeZone(new Date(),model.timeZone||Core.TIME_ZONE);
+  if(today!==todayModel.date)render();
+},60000);
+setInterval(()=>{void loadData()},1800000);
+
+applyI18n();
+void loadData();
