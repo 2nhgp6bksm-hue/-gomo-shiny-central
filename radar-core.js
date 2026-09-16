@@ -14,6 +14,7 @@
   const DAY_MS = 86400000;
   const HOME_SERVER = 1591;
   const TIME_ZONE = "Europe/Brussels";
+  const SHINY_DAY_START_HOUR = 4;
   const CYCLE = ["A", "C", "B"];
   const GROUPS = ["A", "B", "C"];
   const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -58,6 +59,22 @@
     }).formatToParts(date);
     const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
     return `${values.year}-${values.month}-${values.day}`;
+  }
+
+  function shinyLogicalDate(date = new Date(), timeZone = TIME_ZONE) {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      hourCycle: "h23"
+    }).formatToParts(date);
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    const localDate = `${values.year}-${values.month}-${values.day}`;
+
+    if (Number(values.hour) >= SHINY_DAY_START_HOUR) return localDate;
+    return new Date(dateSerial(localDate) - DAY_MS).toISOString().slice(0, 10);
   }
 
   function sameServers(left, right) {
@@ -248,6 +265,7 @@
     CYCLE: [...CYCLE],
     GROUPS: [...GROUPS],
     HOME_SERVER,
+    SHINY_DAY_START_HOUR,
     TIME_ZONE,
     confirmedDays,
     dateInTimeZone,
@@ -259,6 +277,7 @@
     normalizeBaseline,
     predictGroup,
     sameServers,
+    shinyLogicalDate,
     transitionStats,
     uniqServers
   };
