@@ -65,7 +65,7 @@ function renderServers(list){
 }
 
 function render(){
-  const today=Core.dateInTimeZone(new Date(),model.timeZone||Core.TIME_ZONE);
+  const today=Core.shinyLogicalDate(new Date(),model.timeZone||Core.TIME_ZONE);
   todayModel=Core.getDay(model,today);
   $("#todayGroup").textContent=todayModel.group||"—";
   $("#confidence").textContent=String(todayModel.confidence);
@@ -144,7 +144,7 @@ $("#serverSearch").addEventListener("input",searchServer);
 
 setInterval(()=>{
   if(!model||!todayModel)return;
-  const today=Core.dateInTimeZone(new Date(),model.timeZone||Core.TIME_ZONE);
+  const today=Core.shinyLogicalDate(new Date(),model.timeZone||Core.TIME_ZONE);
   if(today!==todayModel.date)render();
 },60000);
 setInterval(()=>{void loadData()},1800000);
