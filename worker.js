@@ -1,4 +1,4 @@
-const RADAR_DATA_URL = "https://timely-meringue-812f51.netlify.app/data/historique-central.json";
+const RADAR_DATA_URL = "https://raw.githubusercontent.com/2nhgp6bksm-hue/gomo-shiny-source/main/historique-central.json";
 const MAX_REMOTE_BYTES = 1000000;
 
 function isRadarPayload(payload) {
