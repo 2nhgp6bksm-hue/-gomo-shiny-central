@@ -38,7 +38,7 @@ export default {
           headers: {
             "cache-control": "no-store, max-age=0",
             "access-control-allow-origin": "*",
-            "x-gomo-source": "radar-netlify"
+            "x-gomo-source": "radar-github"
           }
         });
       } catch (error) {
