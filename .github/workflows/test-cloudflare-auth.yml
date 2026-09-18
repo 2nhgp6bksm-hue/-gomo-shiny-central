@@ -10,8 +10,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
       - name: Test Cloudflare authentication
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          command: whoami
+          wranglerVersion: "4"
+          command: deployments list --name gomo-shiny-central
